@@ -1,0 +1,5 @@
+Python 3.13.15 (Windows, PowerShell, venv)
+pytest 9.1.1, collected 31 items
+30 passed, 1 skipped in 0.51s
+The skipped test is test_live_capture_short_authorized (opt-in).
+Parse of sample_pcaps/sample.pcap: 12 packets (see REPORT.md section 6.2).

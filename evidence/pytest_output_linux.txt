@@ -1,0 +1,41 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.7.0 -- <REDACTED>
+cachedir: .pytest_cache
+rootdir: <REDACTED>
+configfile: pytest.ini
+plugins: anyio-4.15.1
+collecting ... collected 31 items
+
+tests/test_capture.py::test_sample_parses_without_errors PASSED          [  3%]
+tests/test_capture.py::test_every_record_has_identical_keys PASSED       [  6%]
+tests/test_capture.py::test_timestamps_are_ordered_and_iso PASSED        [  9%]
+tests/test_capture.py::test_tcp_syn_fields PASSED                        [ 12%]
+tests/test_capture.py::test_tcp_flag_strings PASSED                      [ 16%]
+tests/test_capture.py::test_packet_lengths PASSED                        [ 19%]
+tests/test_capture.py::test_dns_query_extracted PASSED                   [ 22%]
+tests/test_capture.py::test_dns_response_keeps_question_name PASSED      [ 25%]
+tests/test_capture.py::test_plain_udp PASSED                             [ 29%]
+tests/test_capture.py::test_icmp_has_no_ports PASSED                     [ 32%]
+tests/test_capture.py::test_ipv6_tcp PASSED                              [ 35%]
+tests/test_capture.py::test_icmpv6 PASSED                                [ 38%]
+tests/test_capture.py::test_arp_is_non_ip PASSED                         [ 41%]
+tests/test_capture.py::test_ip_without_known_transport PASSED            [ 45%]
+tests/test_capture.py::test_ethernet_frame_without_ip PASSED             [ 48%]
+tests/test_capture.py::test_truncated_tcp_does_not_raise PASSED          [ 51%]
+tests/test_capture.py::test_bare_payload_without_any_layer PASSED        [ 54%]
+tests/test_capture.py::test_parse_packet_never_raises_on_bad_object PASSED [ 58%]
+tests/test_capture.py::test_hand_built_arp_packet PASSED                 [ 61%]
+tests/test_capture.py::test_missing_file_raises PASSED                   [ 64%]
+tests/test_capture.py::test_non_pcap_file_raises PASSED                  [ 67%]
+tests/test_capture.py::test_empty_pcap_returns_empty_list PASSED         [ 70%]
+tests/test_capture.py::test_limit_argument PASSED                        [ 74%]
+tests/test_capture.py::test_list_interfaces_shape PASSED                 [ 77%]
+tests/test_capture.py::test_live_capture_requires_authorization PASSED   [ 80%]
+tests/test_capture.py::test_live_capture_enforces_limits[0-5] PASSED     [ 83%]
+tests/test_capture.py::test_live_capture_enforces_limits[5000-5] PASSED  [ 87%]
+tests/test_capture.py::test_live_capture_enforces_limits[5-0] PASSED     [ 90%]
+tests/test_capture.py::test_live_capture_enforces_limits[5-600] PASSED   [ 93%]
+tests/test_capture.py::test_live_capture_bad_interface_gives_capture_error PASSED [ 96%]
+tests/test_capture.py::test_live_capture_short_authorized SKIPPED (l...) [100%]
+
+======================== 30 passed, 1 skipped in 2.82s =========================

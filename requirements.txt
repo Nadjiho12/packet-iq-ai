@@ -1,0 +1,8 @@
+scapy==2.8.0
+fastapi==0.161.0
+uvicorn==0.54.0
+SQLAlchemy==2.1.6
+pydantic==2.14.1
+python-dotenv==1.2.4
+pytest==9.1.1
+requests==2.34.2
