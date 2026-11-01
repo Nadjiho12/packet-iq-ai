@@ -55,8 +55,7 @@ packet-iq-ai/
 │   └── attack_demo.pcap    synthetic traffic that triggers all five rules
 ├── evidence/               saved command output and example alerts
 ├── frontend/src/           placeholder for the Week 4 interface
-├── REPORT.md               Week 1 report
-├── REPORT_WEEK2.md         Week 2 report
+├── REPORT.md               combined Week 1 and Week 2 report
 ├── requirements.txt
 ├── pytest.ini
 └── .gitignore
@@ -166,7 +165,7 @@ Expected result: `169 passed, 1 skipped` (the skipped test is the opt-in live ca
 - Flow state is kept in memory and never expires, which suits file analysis but not long live captures.
 - The thresholds have only been tested on synthetic traffic.
 
-Full details are in `REPORT_WEEK2.md`.
+Full details are in `REPORT.md`.
 
 ## Roadmap
 
