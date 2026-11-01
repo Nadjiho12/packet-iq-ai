@@ -1,0 +1,31 @@
+# python -m backend.app.detection sample_pcaps/attack_demo.pcap
+packets processed : 1702
+flows             : 368 (skipped, no flow key: 0)
+
+Top flows by bytes
+  192.0.2.40:51000 -> 198.51.100.50:443 TCP    pkts=1201  bytes=10800054  dur=60.05s flags=SA
+  192.0.2.101:50001 -> 198.51.100.200:80 TCP    pkts=3     bytes=180       dur=0.03s flags=SPA
+  192.0.2.102:50002 -> 198.51.100.200:80 TCP    pkts=3     bytes=180       dur=0.03s flags=SPA
+  192.0.2.60:53100 -> 192.0.2.53:53 DNS    pkts=1     bytes=126       dur=0.00s flags=-
+  198.51.100.88:40000 -> 192.0.2.20:80 TCP    pkts=2     bytes=108       dur=0.01s flags=SA
+
+Alerts (6)
+  [MEDIUM] RULE-001 Port Scan                t=2026-09-22T18:00:12+00:00  198.51.100.77 contacted 21 unique ports on 192.0.2.10 within 10s
+  [HIGH  ] RULE-003 High-Frequency Connects  t=2026-09-22T18:00:22+00:00  198.51.100.88 made 101 connection attempts to 192.0.2.20 within 5s
+  [HIGH  ] RULE-005 TCP SYN Flood Pattern    t=2026-09-22T18:00:30.490000+00:00  50/50 TCP packets to 192.0.2.30 are SYNs with no completed handshake (100%)
+  [MEDIUM] RULE-002 Unusual Traffic Volume   t=2026-09-22T18:01:38.350000+00:00  flow 192.0.2.40:51000 -> 198.51.100.50:443 carried 10494054 bytes (> 10485760)
+  [MEDIUM] RULE-004 Suspicious DNS           t=2026-09-22T18:01:50+00:00  suspicious DNS query (query_length>50): aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb.cccccccccccc.example.com
+  [MEDIUM] RULE-004 Suspicious DNS           t=2026-09-22T18:01:51+00:00  suspicious DNS query (high_entropy_label): x7k2q9m4z8p1w5v3n6.exfil.example
+
+# python -m backend.app.detection sample_pcaps/sample.pcap   (benign Week 1 sample)
+packets processed : 12
+flows             : 9 (skipped, no flow key: 2)
+
+Top flows by bytes
+  192.0.2.10:49152 -> 198.51.100.20:80 TCP    pkts=2     bytes=145       dur=0.50s flags=SPA
+  192.0.2.53:53 -> 192.0.2.10:53000 DNS    pkts=1     bytes=98        dur=0.00s flags=-
+  2001:db8::1:50000 -> 2001:db8::2:443 TCP    pkts=1     bytes=74        dur=0.00s flags=S
+  192.0.2.10:53000 -> 192.0.2.53:53 DNS    pkts=1     bytes=71        dur=0.00s flags=-
+  2001:db8::1:None -> 2001:db8::2:None ICMPv6 pkts=1     bytes=62        dur=0.00s flags=-
+
+Alerts (0)

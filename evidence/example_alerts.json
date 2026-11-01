@@ -1,0 +1,145 @@
+[
+  {
+    "rule_id": "RULE-001",
+    "rule_name": "Port Scan",
+    "severity": "medium",
+    "timestamp": 1790100012.0,
+    "timestamp_iso": "2026-09-22T18:00:12+00:00",
+    "src_ip": "198.51.100.77",
+    "dst_ip": "192.0.2.10",
+    "summary": "198.51.100.77 contacted 21 unique ports on 192.0.2.10 within 10s",
+    "evidence": {
+      "unique_dst_ports": 21,
+      "threshold": 20,
+      "window_seconds": 10.0,
+      "window_start": 1790100010.0,
+      "window_end": 1790100012.0,
+      "ports_sample": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020
+      ]
+    }
+  },
+  {
+    "rule_id": "RULE-003",
+    "rule_name": "High-Frequency Connects",
+    "severity": "high",
+    "timestamp": 1790100022.0,
+    "timestamp_iso": "2026-09-22T18:00:22+00:00",
+    "src_ip": "198.51.100.88",
+    "dst_ip": "192.0.2.20",
+    "summary": "198.51.100.88 made 101 connection attempts to 192.0.2.20 within 5s",
+    "evidence": {
+      "connection_attempts": 101,
+      "threshold": 100,
+      "window_seconds": 5.0,
+      "window_start": 1790100020.0,
+      "window_end": 1790100022.0,
+      "attempt_definition": "TCP SYN without ACK; first packet of a non-TCP flow"
+    }
+  },
+  {
+    "rule_id": "RULE-005",
+    "rule_name": "TCP SYN Flood Pattern",
+    "severity": "high",
+    "timestamp": 1790100030.49,
+    "timestamp_iso": "2026-09-22T18:00:30.490000+00:00",
+    "src_ip": null,
+    "dst_ip": "192.0.2.30",
+    "summary": "50/50 TCP packets to 192.0.2.30 are SYNs with no completed handshake (100%)",
+    "evidence": {
+      "syn_without_ack_packets": 50,
+      "total_tcp_packets": 50,
+      "syn_ratio": 1.0,
+      "threshold_ratio": 0.8,
+      "min_syn_packets": 50,
+      "half_open_flows": 50,
+      "established_flows": 0,
+      "window_seconds": 10.0,
+      "window_start": 1790100030.0,
+      "window_end": 1790100030.49
+    }
+  },
+  {
+    "rule_id": "RULE-002",
+    "rule_name": "Unusual Traffic Volume",
+    "severity": "medium",
+    "timestamp": 1790100098.35,
+    "timestamp_iso": "2026-09-22T18:01:38.350000+00:00",
+    "src_ip": "192.0.2.40",
+    "dst_ip": "198.51.100.50",
+    "summary": "flow 192.0.2.40:51000 -> 198.51.100.50:443 carried 10494054 bytes (> 10485760)",
+    "evidence": {
+      "byte_count": 10494054,
+      "threshold_bytes": 10485760,
+      "packet_count": 1167,
+      "duration_seconds": 58.35,
+      "flow": {
+        "src_ip": "192.0.2.40",
+        "dst_ip": "198.51.100.50",
+        "src_port": 51000,
+        "dst_port": 443,
+        "protocol": "TCP"
+      },
+      "first_seen": 1790100040.0,
+      "last_seen": 1790100098.35
+    }
+  },
+  {
+    "rule_id": "RULE-004",
+    "rule_name": "Suspicious DNS",
+    "severity": "medium",
+    "timestamp": 1790100110.0,
+    "timestamp_iso": "2026-09-22T18:01:50+00:00",
+    "src_ip": "192.0.2.60",
+    "dst_ip": "192.0.2.53",
+    "summary": "suspicious DNS query (query_length>50): aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb.cccccccccccc.example.com",
+    "evidence": {
+      "query": "aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb.cccccccccccc.example.com",
+      "reasons": [
+        "query_length>50"
+      ],
+      "length_threshold": 50,
+      "query_length": 66
+    }
+  },
+  {
+    "rule_id": "RULE-004",
+    "rule_name": "Suspicious DNS",
+    "severity": "medium",
+    "timestamp": 1790100111.0,
+    "timestamp_iso": "2026-09-22T18:01:51+00:00",
+    "src_ip": "192.0.2.60",
+    "dst_ip": "192.0.2.53",
+    "summary": "suspicious DNS query (high_entropy_label): x7k2q9m4z8p1w5v3n6.exfil.example",
+    "evidence": {
+      "query": "x7k2q9m4z8p1w5v3n6.exfil.example",
+      "reasons": [
+        "high_entropy_label"
+      ],
+      "length_threshold": 50,
+      "query_length": 32,
+      "entropy_label": "x7k2q9m4z8p1w5v3n6",
+      "entropy_bits": 4.17
+    }
+  }
+]

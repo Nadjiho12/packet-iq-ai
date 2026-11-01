@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.db
+# Private/real captures must never be committed. Only the synthetic sample is allowed.
+*.pcap
+*.pcapng
+!sample_pcaps/sample.pcap
