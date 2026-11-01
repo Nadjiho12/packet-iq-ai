@@ -1,37 +1,30 @@
-# PacketIQ AI: Packet Capture & Protocol Parsing (Week 1)
+# PacketIQ AI: Packet Capture and Protocol Parsing (Week 1)
 
-Foundation layer of PacketIQ AI: discover capture interfaces, read PCAP files offline, and parse packets into a fixed, protocol-independent record format. Built for the AeroVerix Security AI & Software Development internship.
+This is my Week 1 project for the AeroVerix internship. It finds network interfaces, reads saved PCAP files, and turns each packet into a fixed set of fields that the later parts of PacketIQ AI will use.
 
-## Project structure
+## Folder structure
 
 ```
 packet-iq-ai/
-├── backend/app/capture.py      # Week 1: interface discovery, PCAP reading, packet parsing, guarded live capture
-├── backend/app/flow_engine.py  # Week 2: 5-tuple flow aggregation
-├── backend/app/detection.py    # Week 2: five detection rules (RULE-001..005) + alert records
-├── frontend/src/               # placeholder for later weeks
-├── sample_pcaps/sample.pcap    # Week 1: 12 synthetic packets (documentation addresses only)
-├── sample_pcaps/attack_demo.pcap # Week 2: synthetic traffic that triggers all five rules
-├── scripts/make_sample_pcap.py # regenerates sample.pcap deterministically
-├── scripts/make_attack_pcap.py # regenerates attack_demo.pcap deterministically
-├── tests/test_capture.py       # Week 1: 31 tests
-├── tests/test_flow_engine.py   # Week 2: 55 tests
-├── tests/test_detection.py     # Week 2: 84 tests
-├── tests/synth.py              # synthetic record builders for the tests
-├── evidence/                   # saved test and CLI output
+├── backend/app/capture.py       capture module
+├── frontend/src/                placeholder for later weeks
+├── sample_pcaps/sample.pcap     12 synthetic packets, no real traffic
+├── scripts/make_sample_pcap.py  creates the sample file
+├── tests/test_capture.py        31 tests
+├── evidence/                    test output and screenshots
 ├── requirements.txt
 ├── pytest.ini
-├── .env.example                # placeholders only; never commit real secrets
-└── .gitignore                  # excludes venv, .env, and all PCAPs except the two synthetic samples
+├── .env.example                 template for local settings
+└── .gitignore
 ```
 
-## Requirements
+## What you need
 
-- Python 3.12 or 3.13 (tested with Python 3.13.15 on Windows and 3.12.3 on Linux)
-- Packages in `requirements.txt` (Scapy 2.8.0, pytest 9.1.1, plus FastAPI, Uvicorn, SQLAlchemy, Pydantic, python-dotenv, requests as required by the handbook)
-- Optional, for live capture only: Npcap on Windows (https://npcap.com) or libpcap on Linux/macOS, and root/Administrator privileges
+- Python 3.10 or newer. I used Python 3.13.15 on Windows.
+- The packages in `requirements.txt`.
+- For live capture only: Npcap on Windows (https://npcap.com), and Administrator rights.
 
-## Setup (Windows PowerShell)
+## Setup on Windows (PowerShell)
 
 ```powershell
 python -m venv venv
@@ -39,15 +32,15 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-If PowerShell blocks the activation script, run once:
+If PowerShell blocks the activation script, run this once and try again:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-Command Prompt users: `venv\Scripts\activate.bat`
+In Command Prompt, use `venv\Scripts\activate.bat` instead.
 
-## Setup (Linux / macOS)
+## Setup on Linux or macOS
 
 ```bash
 python3 -m venv venv
@@ -55,7 +48,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run
+## Running it
 
 ```powershell
 python scripts\make_sample_pcap.py
@@ -65,30 +58,35 @@ python -m backend.app.capture parse sample_pcaps\sample.pcap --json
 python -m backend.app.capture interfaces
 ```
 
-(On Linux/macOS, replace `\` with `/`.)
-## Live capture (optional, authorized use only)
+On Linux or macOS, replace `\` with `/`.
 
-Only capture traffic on an interface you own or are permitted to monitor. Live capture is capped at 1000 packets and 60 seconds, and requires an explicit confirmation flag:
+## Live capture (optional)
 
-```powershell
-python -m backend.app.capture live <interface> --count 10 --timeout 10 --i-am-authorized
-```
-
-The opt-in pytest live test runs only when you set `PACKETIQ_LIVE_TEST=1` and `PACKETIQ_LIVE_IFACE=<interface>`.
-
-## Week 2: flow aggregation and detection
+Only capture traffic on a network you own or have permission to monitor. Live capture is limited to 1000 packets and 60 seconds, and needs the confirmation flag:
 
 ```powershell
-python scripts\make_attack_pcap.py
-pytest tests -v                             # 169 passed, 1 skipped (Linux)
-python -m backend.app.detection sample_pcaps\attack_demo.pcap       # alert table
-python -m backend.app.detection sample_pcaps\attack_demo.pcap --json
+python -m backend.app.capture live Ethernet --count 10 --timeout 10 --i-am-authorized
 ```
 
-| Rule | Name | Severity | Threshold |
-|---|---|---|---|
-| RULE-001 | Port Scan | medium | > 20 unique destination ports on one host in 10 s |
-| RULE-002 | Unusual Traffic Volume | medium | > 10 MB in one flow |
-| RULE-003 | High-Frequency Connects | high | > 100 connection attempts to one destination in 5 s |
-| RULE-004 | Suspicious DNS | medium | query length > 50 characters, or suspicious pattern |
-| RULE-005 | TCP SYN Flood Pattern | high | SYN ratio > 80% without established ACK state |
+Replace `Ethernet` with the name of your interface from the `interfaces` command.
+
+The live test in pytest is skipped by default. To run it, set these first:
+
+```powershell
+$env:PACKETIQ_LIVE_TEST = "1"
+$env:PACKETIQ_LIVE_IFACE = "Ethernet"
+```
+
+## Expected test result
+
+```
+30 passed, 1 skipped
+```
+
+The skipped test is the live capture test.
+
+## Security
+
+- The repository contains no API keys or passwords. Put local secrets in `.env`, which Git ignores.
+- The sample file uses only documentation addresses and example.com.
+- Real PCAP files are ignored by Git.
