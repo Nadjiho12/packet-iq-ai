@@ -4,7 +4,7 @@ Responsibilities
   1. Interface discovery            -> list_interfaces()
   2. Offline PCAP reading           -> iter_pcap() / read_pcap()
   3. Packet parsing to flat records -> parse_packet()
-  4. Guarded, short live capture    -> capture_live()   (authorized lab traffic only)
+  4. Short live capture             -> capture_live()   (capped in packets and time)
 
 Design rules
   * parse_packet() NEVER raises. Anything it cannot extract is None, and every
@@ -230,20 +230,13 @@ def capture_live(
     interface: str,
     count: int = 10,
     timeout: int = 10,
-    authorized: bool = False,
     bpf_filter: Optional[str] = None,
 ) -> List[PacketRecord]:
-    """Short live capture. Requires explicit `authorized=True`.
+    """Short live capture.
 
-    Only use on an interface/traffic you own or are permitted to monitor.
     Capped at MAX_LIVE_PACKETS packets and MAX_LIVE_SECONDS seconds.
     Usually needs root/Administrator (and Npcap on Windows).
     """
-    if not authorized:
-        raise PermissionError(
-            "Live capture requires authorized=True: confirm you are permitted to "
-            "monitor this interface and its traffic."
-        )
     if not (1 <= count <= MAX_LIVE_PACKETS):
         raise ValueError(f"count must be 1..{MAX_LIVE_PACKETS}")
     if not (1 <= timeout <= MAX_LIVE_SECONDS):
@@ -278,12 +271,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_parse = sub.add_parser("parse", help="parse an offline PCAP")
     p_parse.add_argument("pcap")
     p_parse.add_argument("--json", action="store_true", help="emit JSON instead of a table")
-    p_live = sub.add_parser("live", help="short authorized live capture")
+    p_live = sub.add_parser("live", help="short live capture")
     p_live.add_argument("interface")
     p_live.add_argument("--count", type=int, default=10)
     p_live.add_argument("--timeout", type=int, default=10)
-    p_live.add_argument("--i-am-authorized", action="store_true",
-                        help="confirm you may monitor this interface")
     args = ap.parse_args(argv)
 
     try:
@@ -293,7 +284,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
         records = (
             read_pcap(args.pcap) if args.cmd == "parse"
-            else capture_live(args.interface, args.count, args.timeout, args.i_am_authorized)
+            else capture_live(args.interface, args.count, args.timeout)
         )
     except (PcapReadError, CaptureError, PermissionError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
