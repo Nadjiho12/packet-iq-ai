@@ -1,306 +1,320 @@
-# PacketIQ AI: Internship Report (Weeks 1 and 2)
+# PacketIQ AI: Combined Report, Weeks 2 and 3
 
-**Name:** Nadji Houa
-**Program:** AeroVerix Security, AI and Software Development Internship
-**Week 1 due:** 27 October 2026
-**Week 2 due:** 3 November 2026
+**Program:** AeroVerix Security, PacketIQ AI Technical Internship
+**Author:** Nadji12
+**Week 2:** Flow Aggregation & Detection Engine (assigned 29 Oct 2026, deadline 3 Nov 2026, 11:59 PM PKT)
+**Week 3:** AI Investigation Agent & Automated Alerting (assigned 5 Nov 2026, deadline 10 Nov 2026, 11:59 PM PKT)
 
-## Contents
+## Overview
 
-- Part A: Week 1, Packet Capture and Protocol Parsing
-- Part B: Week 2, Flow Aggregation and Detection
-- Part C: Project overview and how to run everything
+PacketIQ AI turns network packet captures into explained security alerts. In Week 1 I built the capture and parsing layer. In Week 2 I added stateful flows and five detection rules. In Week 3 I added an AI investigation step and email notification on top of those alerts.
+
+```
+PCAP -> capture.py -> PacketRecord -> flow_engine.py -> detection.py -> Alert (RULE-001..005)
+                                                                          |
+                                                    ai_agent.py  -> ThreatReport (validated JSON)
+                                                                          |
+                                                    notifier.py  -> SMTP email (STARTTLS)
+                                    (pipeline.py connects all steps; AI and email are opt-in)
+```
+
+| Week | Module | Tests |
+|---|---|---|
+| 1 | `capture.py` | 31 (1 opt-in live test skipped) |
+| 2 | `flow_engine.py`, `detection.py` | 139 |
+| 3 | `ai_agent.py`, `notifier.py`, `pipeline.py` | 29 |
+
+Overall: **198 passed, 1 skipped** (Linux, Python 3.12.3).
 
 ---
 
-# Part A: Week 1, Packet Capture and Protocol Parsing
+# Part A: Week 2, Flow Aggregation & Detection Engine
 
-## 1. What I was asked to do
+### 1- Objective
 
-The goal was to build the first part of PacketIQ AI. The program needs to find network interfaces, read saved PCAP files, and turn each packet into a set of standard fields: timestamp, length, source and destination IP, protocol, ports, TCP flags and DNS query. I also had to write tests that prove the parser works. Live capture was optional and only allowed on traffic I am authorised to monitor.
+Turn parsed packets (the Week 1 `PacketRecord` format) into stateful 5-tuple flows, and implement the five heuristic detection rules (RULE-001 to RULE-005) with consistent alert objects.
 
-## 2. What I built
+### 2- Deliverables
 
-| Item | File |
-|---|---|
-| Capture module (interfaces, PCAP reading, parsing, live capture) | `backend/app/capture.py` |
-| Synthetic sample capture (12 packets) | `sample_pcaps/sample.pcap` |
-| Script that creates the sample | `scripts/make_sample_pcap.py` |
-| Tests (31) | `tests/test_capture.py` |
-
-The sample uses documentation IP ranges (192.0.2.x, 198.51.100.x, 203.0.113.x and 2001:db8::/32) and the domain example.com, so it contains no real traffic.
-
-## 3. Environment
-
-I ran Week 1 on Windows 11 with PowerShell.
-
-- Python 3.13.15
-- pytest 9.1.1
-- Scapy 2.8.0
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python scripts\make_sample_pcap.py
-pytest tests\test_capture.py -v
-python -m backend.app.capture parse sample_pcaps\sample.pcap
-```
-
-## 4. How the code works
-
-- **One record format.** Every packet becomes a `PacketRecord` with the same 13 fields. If a field does not exist for a packet (for example, ports on an ARP frame), it is `None`. The later parts of the project then do not need special cases for each protocol.
-- **Protocol label.** I check the layers in this order: DNS, TCP, UDP, ICMP, ICMPv6, ARP, then OTHER. DNS is checked first because DNS runs over UDP, and I want it labelled as DNS.
-- **Errors.** The parser does not stop on a bad packet. If something fails, that packet gets `protocol = OTHER` and a `parse_error` message, and the rest of the file is still read.
-- **Missing layers.** ARP and raw Ethernet frames have no IP addresses. ICMP has no ports. An IPv4 packet with an unknown transport protocol keeps its IP addresses.
-- **Length.** I use the on-wire length when the capture has it, and the captured length otherwise.
-- **DNS.** I report the first question name, without the trailing dot. A DNS response repeats the question, so it shows the name too.
-- **Reading files.** `iter_pcap` reads one packet at a time, so large files do not fill memory. `read_pcap` returns a list. A missing or invalid file raises `PcapReadError`.
-- **Live capture.** The function refuses to run unless `authorized=True` is passed. The CLI needs `--i-am-authorized`. I capped it at 1000 packets and 60 seconds.
-
-## 5. Week 1 test results
-
-```
-30 passed, 1 skipped in 0.51s
-```
-
-The skipped test is the live capture test. It only runs when `PACKETIQ_LIVE_TEST=1` and `PACKETIQ_LIVE_IFACE` are set.
-
-Parsing the sample gave 12 packets:
-
-```
-  # proto    len src                          dst                          flags dns
-  0 TCP       54 192.0.2.10:49152             198.51.100.20:80             S     -
-  1 TCP       54 198.51.100.20:80             192.0.2.10:49152             SA    -
-  2 TCP       91 192.0.2.10:49152             198.51.100.20:80             PA    -
-  3 DNS       71 192.0.2.10:53000             192.0.2.53:53                -     example.com
-  4 DNS       98 192.0.2.53:53                192.0.2.10:53000             -     example.com
-  5 UDP       47 192.0.2.10:40000             203.0.113.5:9999             -     -
-  6 ICMP      42 192.0.2.10                   198.51.100.20                -     -
-  7 ARP       42 -                            -                            -     -
-  8 TCP       74 2001:db8::1:50000            2001:db8::2:443              S     -
-  9 ICMPv6    62 2001:db8::1                  2001:db8::2                  -     -
- 10 OTHER     38 192.0.2.10                   198.51.100.20                -     -
- 11 OTHER     18 -                            -                            -     -
-```
-
-## 6. Week 1 problems
-
-1. **A test failed on the first run.** The test for an unknown interface expected a `CaptureError`, but Scapy raised a `ValueError`, which my code did not catch. I added `ValueError` to the caught exceptions and the test passed.
-2. **Scapy warned that no libpcap provider was available.** Offline reading still works because Scapy uses its own reader. Live capture on Windows needs Npcap.
-3. **Live capture failed without Npcap.** Scapy stopped with an error saying WinPcap is not installed. This is an environment problem, not a parsing problem. I have not yet tested live capture with Npcap installed.
-
-## 7. Week 1 limitations
-
-- I have not tested live capture on real traffic.
-- The sample is synthetic, so it does not cover IP fragments, IPv6 extension headers, VLAN tags or tunnels.
-- PCAPNG files are read by Scapy, but I did not test a PCAPNG sample.
-- DNS: only the first question in a message is reported.
-- Protocols are labelled from the layers Scapy decodes, not from port numbers. A DNS server on a non-standard port shows as UDP.
-- I only tested on Windows.
-
----
-
-# Part B: Week 2, Flow Aggregation and Detection
-
-## 1. What I was asked to do
-
-Week 1 turned packets into records. Week 2 uses those records to build flows, which are groups of packets that share the same five fields, and runs five detection rules on them. Each rule must produce an alert with a rule ID, a severity, the evidence that triggered it, and a timestamp. I also had to write tests for each rule, covering cases that should alert, cases that should not, and the threshold edges.
-
-## 2. What I built
-
-| Item | File |
+| Deliverable | Location |
 |---|---|
 | Flow engine | `backend/app/flow_engine.py` |
-| Detection rules and alert records | `backend/app/detection.py` |
-| Flow engine tests (55) | `tests/test_flow_engine.py` |
-| Detection tests (84) | `tests/test_detection.py` |
-| Helpers for building synthetic records | `tests/synth.py` |
-| Synthetic attack capture (1,702 packets) | `sample_pcaps/attack_demo.pcap` |
-| Script that creates the attack capture | `scripts/make_attack_pcap.py` |
-| Example alert output | `evidence/example_alerts.json` |
+| Detection engine (5 rules) | `backend/app/detection.py` |
+| Unit tests | `tests/test_flow_engine.py` (55), `tests/test_detection.py` (84) |
+| Shared synthetic-data helpers | `tests/synth.py` |
+| Synthetic attack PCAP + generator | `sample_pcaps/attack_demo.pcap`, `scripts/make_attack_pcap.py` |
+| Example alert records | `evidence/example_alerts.json` (section 6) |
+| Test and CLI output | `evidence/week2_pytest_output_linux.txt`, `evidence/week2_detection_cli_output.txt` |
 
-The attack capture uses documentation IP addresses (RFC 5737) and no real traffic.
+### 3- Flow state (`flow_engine.py`)
 
-## 3. Flow state
+**Flow key (exactly the five required fields):** `(src_ip, dst_ip, src_port, dst_port, protocol)`. Flows are directional: A→B and B→A are separate flows. `protocol` is the Week 1 label (`TCP`, `UDP`, `DNS`, `ICMP`, ...). ICMP flows have `None` ports.
 
-A flow is identified by `(src_ip, dst_ip, src_port, dst_port, protocol)`. Flows have a direction, so A to B and B to A are two different flows. For each flow I track:
+| Field | Meaning |
+|---|---|
+| `first_seen` / `last_seen` | smallest / largest valid timestamp (robust to out-of-order packets) |
+| `packet_count` / `byte_count` | packets and on-wire bytes (`length` from Week 1) |
+| `dst_port` | destination port (from the key); `FlowEngine.dst_ports_for(src, dst)` returns all ports a source contacted on a host |
+| `flag_counts`, `tcp_flags_seen` | per-flag counters (`S`, `A`, `P`, `F`, `R`, ...) |
+| `syn_count` | packets with SYN and no ACK (connection attempts) |
+| `synack_count` | packets with SYN+ACK |
+| `ack_after_syn` / `established` | an ACK (no SYN/RST) arrived after a SYN on this flow = handshake completed |
 
-- `first_seen` and `last_seen`, using the smallest and largest valid timestamp, so out-of-order packets do not break them
-- `packet_count` and `byte_count`
-- the destination port
-- counts of each TCP flag
-- the number of SYN packets without ACK (connection attempts)
-- whether the flow completed a handshake. A flow counts as established only when an ACK follows a SYN from the same direction.
+**Input handling.** Every record is normalised first. Missing or unexpected values become `None` (length becomes 0); a record without a valid `src_ip`, `dst_ip` and `protocol` forms no flow and is counted in `FlowEngine.stats` instead of raising. The engine accepts `PacketRecord` objects and plain dicts.
 
-I also keep, for each source and destination host, the set of destination ports used. The port-scan rule needs this.
+### 4- Detection rules (`detection.py`)
 
-Input is checked before use. A missing or invalid value becomes `None`, and a missing length becomes 0. A record with no valid source IP, destination IP or protocol cannot form a flow, so I count it in the engine's stats instead of raising an error.
+All comparisons are strict (`>`): a value exactly at a threshold does **not** alert. All values are in one `Thresholds` dataclass.
 
-## 4. The five rules and thresholds
+#### 1. Thresholds
 
-I used the thresholds from the assignment. Every comparison is strict (`>`), so a value exactly on the threshold does not alert.
-
-| Rule | Name | Severity | Threshold |
+| Rule | Name | Severity | Threshold (from the assignment) |
 |---|---|---|---|
-| RULE-001 | Port Scan | medium | more than 20 unique destination ports on one host within 10 s |
-| RULE-002 | Unusual Traffic Volume | medium | more than 10 MB in one flow |
-| RULE-003 | High-Frequency Connects | high | more than 100 connection attempts to one destination within 5 s |
-| RULE-004 | Suspicious DNS | medium | query longer than 50 characters, or a suspicious pattern |
-| RULE-005 | TCP SYN Flood Pattern | high | SYN ratio above 80% without established ACK state |
+| RULE-001 | Port Scan | medium | > 20 unique destination ports on one host within 10 s |
+| RULE-002 | Unusual Traffic Volume | medium | > 10 MB in one flow |
+| RULE-003 | High-Frequency Connects | high | > 100 connection attempts to one destination within 5 s |
+| RULE-004 | Suspicious DNS | medium | query length > 50 characters, or suspicious pattern |
+| RULE-005 | TCP SYN Flood Pattern | high | SYN ratio > 80% without corresponding established ACK state |
 
-The assignment did not give some values, so I chose them. They are all in one place (`Thresholds` in `detection.py`):
+Each rule has one fixed severity so rule ID and severity are always consistent (tested).
 
-- **10 MB** is 10 × 1024 × 1024 bytes. If the handbook means 10,000,000 bytes, change `volume_bytes`.
-- **Severities.** The assignment did not specify them. I set RULE-003 and RULE-005 to high and the others to medium.
-- **RULE-005 window and minimum.** The ratio is measured over 10 seconds, and the rule only fires with at least 50 half-open SYN packets. Without that minimum, one SYN with no reply would give 100%.
-- **RULE-004 "suspicious pattern".** The assignment did not define it, so I used three checks: a label of 16 or more characters with both letters and digits and an entropy of at least 3.5 bits per character; a hex-only label of 32 or more characters; and a label of 12 or more characters that is at least 60% digits.
-- **Repeat alerts.** The same rule on the same key alerts at most once every 60 seconds. RULE-002 alerts once per flow. RULE-004 alerts once per source and query name.
+#### 2. Assumptions and prototype parameters (not specified in the assignment)
 
-Window edges are inclusive: an event stays in a 10-second window while the time since it is 10 seconds or less.
+| Item | Choice | Why |
+|---|---|---|
+| "10 MB" | 10 × 1024 × 1024 = 10,485,760 bytes | binary megabyte; one constant (`Thresholds.volume_bytes`), easy to change to 10,000,000 |
+| Severities | fixed per rule (table above) | assignment requires severities but does not give values |
+| Window edges | inclusive: an event stays in a W-second window while `now − event ≤ W` | deterministic, tested at the boundary |
+| RULE-001 scope | per (source, destination host) pair | "on one host"; ports counted for any protocol with a destination port |
+| RULE-003 scope | per (source, destination IP) pair | "to one destination" |
+| RULE-005 window | 10 s | ratio needs a window; none was given |
+| RULE-005 minimum | at least 50 half-open SYN packets | avoids "1 SYN out of 1 packet = 100%". Also keeps small port scans (21 to 49 SYNs) from matching RULE-005 |
+| RULE-004 patterns | length > 50; high-entropy label (label ≥ 16 chars with letters and digits and entropy ≥ 3.5 bits/char); hex-only label ≥ 32 chars; digit-heavy label (≥ 12 chars, ≥ 60% digits) | "suspicious pattern" is not defined; these are common tunnelling/DGA indicators |
+| De-duplication | same (rule, key) alerts once per 60 s of packet time; RULE-002 once per flow; RULE-004 once per (source, query) | an ongoing scan must not alert on every packet |
 
-## 5. How each rule works
+#### 3. How each rule works
 
-- **RULE-001** counts unique destination ports per source and destination host in a sliding 10-second window.
-- **RULE-002** checks each flow's byte count. It does not add traffic across flows or between the two directions.
-- **RULE-003** counts connection attempts per source and destination IP in a sliding 5-second window. A TCP SYN without ACK counts as one attempt, and so does the first packet of a new UDP or other non-TCP flow. Plain ACKs and SYN-ACKs do not count.
-- **RULE-004** checks DNS queries only. I skip packets from source port 53, because those are responses and repeat the question. I convert the name to lower case and remove the trailing dot before measuring it.
-- **RULE-005** looks at TCP packets sent to one host in a 10-second window. A SYN counts as half-open if its flow never completed a handshake. The rule fires when half-open SYNs are more than 80% of all TCP packets to that host and there are at least 50 of them.
+- **RULE-001.** Per (src, dst): a sliding 10 s window of destination ports with an O(1) unique count. Alerts when unique > 20.
+- **RULE-002.** Per directional flow: alerts when `byte_count` > threshold, once per flow. A flow's bytes are not pooled with other flows or with the reverse direction.
+- **RULE-003.** Per (src, dst IP): counts *connection attempts* in a sliding 5 s window. An attempt is a TCP packet with SYN and no ACK, or the first packet of a non-TCP flow. Plain ACKs and SYN-ACKs do not count.
+- **RULE-004.** Evaluates DNS queries only. Packets from source port 53 are treated as responses and skipped, because a response repeats the question. Query names are lower-cased and the trailing dot is removed before measuring length.
+- **RULE-005.** Per destination host, over TCP packets in a 10 s window. A SYN counts as *half-open* if its flow never completed a handshake (`ack_after_syn` false). Alert when `half-open SYNs / all TCP packets to that host > 0.8` and half-open SYNs ≥ 50. Completed handshakes therefore both leave the numerator and add their ACK packets to the denominator.
 
-## 6. Pipeline
+### 5- Pipeline (task 4)
 
-1. `read_pcap()` from Week 1 gives a list of records.
-2. `run_detection()` sorts them by timestamp.
-3. For each record, the flow engine updates its flow, then the five rules run.
+`capture.read_pcap()` → `PacketRecord` list → `run_detection()` (sorts by timestamp) → `DetectionEngine.process()` for each record: `FlowEngine.update()` then the five rules. Command line:
 
-```powershell
-python -m backend.app.detection sample_pcaps\attack_demo.pcap
-python -m backend.app.detection sample_pcaps\attack_demo.pcap --json
+```
+python -m backend.app.detection sample_pcaps/attack_demo.pcap          # table
+python -m backend.app.detection sample_pcaps/attack_demo.pcap --json   # alert records
 ```
 
-## 7. Attack capture and results
+`attack_demo.pcap` (1,702 synthetic packets, RFC 5737 addresses) contains one scenario per rule plus benign handshakes and a DNS lookup. Result: exactly one alert for RULE-001, -002, -003, -005 and two for RULE-004, each attributed to the intended host, and **zero alerts** on the benign Week 1 `sample.pcap`. The RULE-002 flow is a header-only (snaplen-truncated) capture whose records keep their original wire length (9000 bytes), so the file is 119 KB instead of 10 MB.
 
-`scripts/make_attack_pcap.py` creates a capture with one scenario per rule, plus normal traffic:
+### 6- Example alert records
 
-- a port scan from 198.51.100.77 to 192.0.2.10 (RULE-001)
-- a large flow of about 10.5 MB (RULE-002)
-- 130 connections to 192.0.2.20 in a few seconds (RULE-003)
-- 200 SYNs from different sources to 192.0.2.30 (RULE-005)
-- two suspicious DNS queries, one long and one with a random-looking label (RULE-004)
-- two normal TCP handshakes and a normal DNS lookup, which should not alert
-
-Running detection on this file gave six alerts: one each for RULE-001, RULE-002, RULE-003 and RULE-005, and two for RULE-004. Each alert pointed at the host I expected. The Week 1 sample gave zero alerts.
-
-The large flow is stored with headers only, but each record keeps its original 9,000-byte size. That keeps the file at about 119 KB instead of 10 MB.
-
-Example alert for RULE-003:
+All alerts have the same nine keys: `rule_id`, `rule_name`, `severity`, `timestamp`, `timestamp_iso`, `src_ip`, `dst_ip`, `summary`, `evidence`. Timestamps are packet times, not wall-clock times. Full file: `evidence/example_alerts.json`.
 
 ```json
 {
   "rule_id": "RULE-003",
   "rule_name": "High-Frequency Connects",
   "severity": "high",
+  "timestamp": 1790100022.0,
   "timestamp_iso": "2026-09-22T18:00:22+00:00",
   "src_ip": "198.51.100.88",
   "dst_ip": "192.0.2.20",
   "summary": "198.51.100.88 made 101 connection attempts to 192.0.2.20 within 5s",
   "evidence": {
-    "connection_attempts": 101,
-    "threshold": 100,
-    "window_seconds": 5.0,
-    "window_start": 1790100020.0,
-    "window_end": 1790100022.0
+    "connection_attempts": 101, "threshold": 100, "window_seconds": 5.0,
+    "window_start": 1790100020.0, "window_end": 1790100022.0,
+    "attempt_definition": "TCP SYN without ACK; first packet of a non-TCP flow"
   }
 }
 ```
 
-The full alert list is in `evidence/example_alerts.json`.
+```json
+{
+  "rule_id": "RULE-005",
+  "rule_name": "TCP SYN Flood Pattern",
+  "severity": "high",
+  "timestamp": 1790100030.49,
+  "timestamp_iso": "2026-09-22T18:00:30.490000+00:00",
+  "src_ip": null,
+  "dst_ip": "192.0.2.30",
+  "summary": "50/50 TCP packets to 192.0.2.30 are SYNs with no completed handshake (100%)",
+  "evidence": {
+    "syn_without_ack_packets": 50, "total_tcp_packets": 50, "syn_ratio": 1.0,
+    "threshold_ratio": 0.8, "min_syn_packets": 50, "half_open_flows": 50,
+    "established_flows": 0, "window_seconds": 10.0,
+    "window_start": 1790100030.0, "window_end": 1790100030.49
+  }
+}
+```
 
-## 8. Week 2 tests
+Summary of the demo run (`evidence/week2_detection_cli_output.txt`):
 
-On Linux with Python 3.12.3 I ran `pytest tests -v` and got **169 passed, 1 skipped**. The skipped test is the Week 1 live capture test.
+| Rule | Severity | Alert time (UTC) | Subject |
+|---|---|---|---|
+| RULE-001 | medium | 18:00:12 | 198.51.100.77 → 192.0.2.10, 21 unique ports |
+| RULE-003 | high | 18:00:22 | 198.51.100.88 → 192.0.2.20, 101 attempts in 5 s |
+| RULE-005 | high | 18:00:30.49 | → 192.0.2.30, 50/50 half-open SYNs |
+| RULE-002 | medium | 18:01:38.35 | 192.0.2.40:51000 → 198.51.100.50:443, 10,494,054 bytes |
+| RULE-004 | medium | 18:01:50 | 66-character query name |
+| RULE-004 | medium | 18:01:51 | high-entropy label |
 
-**Windows run:** *(paste your `pytest tests -v` result here before submitting)*
+### 7- Test results
 
-| File | Tests | What they check |
+`pytest tests -v` → **169 passed, 1 skipped at the end of Week 2** (Linux, Python 3.12.3; the skipped test is the opt-in Week 1 live capture).
+
+| Area | Tests | Covers |
 |---|---|---|
-| `test_flow_engine.py` | 55 | the five-field key, counters, timestamps, direction, ports, TCP flags, bad input |
-| `test_detection.py` | 84 | each rule's positive, negative and threshold-edge cases, alert format, repeatability, bad input, and two pipeline runs |
+| Flow engine | 55 | five-field key, counters, first/last seen, out-of-order packets, directionality, destination ports, flag/handshake tracking, ICMP, bad/missing fields |
+| RULE-001 | 11 | positive, exactly 20 ports (no alert), 21st packet, window boundary at 10.0 s and just over, one host only, repeated ports, per source, cooldown |
+| RULE-002 | 7 | positive, exactly 10 MB (no alert), per flow, per direction, once per flow, no timestamp, invalid lengths |
+| RULE-003 | 10 | positive, exactly 100 (no alert), window boundary at 5.0 s and just over, ACKs/SYN-ACKs not counted, UDP, per destination |
+| RULE-004 | 27 | positive (length, entropy, hex, digits), exactly 50 chars (no alert), trailing dot, 9 benign names, responses skipped, dedup, bad value types |
+| RULE-005 | 13 | positive, completed handshakes, ratio exactly 0.80 and 0.802, minimum count, window, per destination, non-TCP, established-flow exclusion, minimum applies to half-open SYNs |
+| Consistency / robustness / pipeline | 16 | rule ID, name and severity match the catalogue; identical alert keys; JSON-serialisable; repeatable; garbage input (None, NaN, wrong types) never crashes and never alerts; attack PCAP triggers all five rules; benign PCAP triggers none |
 
-For each threshold rule I tested the exact boundary: exactly 20 ports, exactly 100 attempts, exactly 10 MB, exactly 50 characters, and exactly 80%. The boundary value must not alert, and one more must.
+**Test quality check.** To verify the tests detect real bugs, I broke the code one change at a time (strict → non-strict comparisons, window edges, counting ACKs as attempts, ignoring established flows, removing the minimum-sample guard, swapping a severity). All of them made the suite fail, except one equivalent mutation (the cheap pre-check before the exact RULE-005 test, which cannot change the result).
 
-To check the tests catch real bugs, I changed the code on purpose, one change at a time: a `>` to `>=`, a window made exclusive, ACKs counted as attempts, established flows ignored, the minimum count removed, and a severity swapped. The suite failed for each change. The one change it did not catch was an extra check before the RULE-005 calculation, which cannot change the result.
+**Issues found while testing**
+1. Hex-only filler (`"a" * 38`) correctly triggered the hex-label pattern, so the RULE-004 boundary tests use a non-hex letter.
+2. RULE-005 correctly alerted as soon as the half-open ratio crossed 0.8, so the boundary tests send diluting traffic first.
+3. The first RULE-005 tests never exercised the "established flow" path (the exact count equalled the pre-check when no handshakes existed). Three tests with completed handshakes were added; mutation testing confirmed they catch the gap.
+4. A scan of 100 ports also raises RULE-005 (see limitations); a test documents this on purpose.
 
-Writing the tests exposed problems, which I fixed:
+**Performance.** 100,000 synthetic packets process in about 2 s (linear; sliding windows with O(1) updates).
 
-- A run of repeated `a` characters is a valid hex string and tripped the hex rule, so the boundary tests use `q`.
-- RULE-005 alerts as soon as the ratio passes 80%, so the boundary tests send the normal traffic first.
-- My first RULE-005 tests never reached the "established flow" code. I added tests with completed handshakes.
+### 8- Known limitations (Week 2)
 
-## 9. Week 2 limitations
-
-1. **Connection attempts are estimates.** Each SYN counts, so retransmissions count again. A non-TCP scan that reuses one 5-tuple counts once. RULE-003 groups attempts by source and destination IP, so a distributed attack from many sources is not detected.
-2. **Handshake state is inferred.** A flow counts as established when an ACK follows a SYN in the same direction. I ignore the server's SYN-ACK, because a SYN flood also gets SYN-ACKs. If a capture has only one direction, the final ACK may be missing. There are no timeouts or sequence-number checks.
-3. **RULE-001 and RULE-005 overlap.** A SYN scan that sends at least 50 SYNs with no handshakes matches both. The minimum of 50 is the only thing that separates a small scan from a flood.
-4. **RULE-005 is per host, not per port.** The 10-second window and the minimum of 50 are my own choices.
-5. **RULE-004 misses some cases.** Random letters-only labels are not caught, and long machine-generated names with digits, such as CDN hostnames, could trigger a false alert. The Week 1 record has no DNS query-type field, so responses are identified only by source port 53.
-6. **Late timestamps.** `run_detection()` sorts by time first. The streaming `process()` method sets a backwards timestamp to the latest time seen.
-7. **Packets without a timestamp** still update counters and can trigger RULE-002 and RULE-004, but the time-window rules ignore them.
-8. **Nothing expires.** Flow and window data grows with the number of flows, and there is no flow timeout. This is fine for reading a file, but a long live capture would use more memory over time.
-9. **Vertical scans only.** A port scan of one host is detected. The same port scanned across many hosts is not.
-10. **Thresholds are tested only on synthetic data.** I do not know how often they would give false alarms on real traffic.
-
-## 10. Week 2 summary
-
-The flow engine groups packets into five-field flows and keeps the counters and times the assignment asks for. All five rules run, and each has a positive test, a negative test and boundary tests. On the synthetic attack capture, each rule alerted on the host I designed it to catch. The normal traffic and the Week 1 sample alerted on nothing. The main weaknesses are the estimated connection attempts and handshake state, and the overlap between RULE-001 and RULE-005.
+1. **Connection attempts are estimated.** TCP SYN-without-ACK counts as an attempt, so retransmitted SYNs are counted again. Non-TCP "attempts" are new 5-tuples, so a UDP/ICMP scan reusing one 5-tuple counts once. Attempts are per source and destination IP, so a distributed attack from many sources is not seen by RULE-003.
+2. **SYN/ACK state is inferred, not tracked.** A flow is "established" when an ACK follows its SYN in the *same direction*; the server's SYN-ACK is deliberately ignored, because SYN floods also receive SYN-ACKs. Captures that only contain the server-to-client direction cannot show the final ACK, and the engine has no handshake timeout or sequence-number checks.
+3. **RULE-001 and RULE-005 overlap.** A SYN scan with at least 50 SYNs and no handshakes matches both. The 50-packet minimum separates small scans only.
+4. **RULE-005 is per destination host**, not per port, and uses a window and a minimum count that the assignment does not define.
+5. **RULE-004 patterns are heuristics.** Letters-only random labels (no digits) and short labels are missed; long machine-generated hostnames with digits (for example CDN names) can false-alarm. The Week 1 record has no DNS record type or query/response flag, so responses are skipped by source port 53 only.
+6. **Out-of-order timestamps.** `run_detection()` sorts by timestamp; the streaming `process()` API clamps backwards timestamps to the newest one seen.
+7. **Records without a usable timestamp** update counters and can raise RULE-002 and RULE-004, but are ignored by the windowed rules.
+8. **State is never expired.** Flow and window dictionaries grow with the number of distinct flows, and there is no flow timeout; this is fine for PCAP analysis but not for long-running live capture.
+9. **Only vertical scans.** One source scanning many ports on one host is detected; one port across many hosts is not.
+10. **Demo data is synthetic.** Thresholds were tested on controlled data only, not on real traffic, so false-positive rates are unknown.
 
 ---
 
-# Part C: Project overview and how to run everything
+# Part B: Week 3, AI Investigation Agent & Automated Alerting
 
-## 1- Layout
+### 1- What I built
 
-```
-packet-iq-ai/
-├── backend/app/capture.py        Week 1: capture, parsing, live capture
-├── backend/app/flow_engine.py    Week 2: flow state
-├── backend/app/detection.py      Week 2: five rules and alert records
-├── tests/                        Week 1 and Week 2 tests
-├── scripts/                      generators for the two sample captures
-├── sample_pcaps/                 sample.pcap and attack_demo.pcap
-├── evidence/                     command output and example alerts
-├── frontend/src/                 placeholder for Week 4
-├── REPORT.md                     this report
-├── README.md
-└── requirements.txt
-```
+For every alert from the Week 2 detection engine, I generate an AI investigation report that is validated against a Pydantic schema, and I can send it by email. The original alert is never lost or changed, even when the AI or the email step fails.
 
-## 2- Full run sequence (Windows)
+| Deliverable | Location |
+|---|---|
+| AI agent and Pydantic schema | `backend/app/ai_agent.py` |
+| Email notifier | `backend/app/notifier.py` |
+| Pipeline and CLI (detection, then AI, then email) | `backend/app/pipeline.py` |
+| Tests | `tests/test_ai_agent.py` (17), `tests/test_notifier.py` (4), `tests/test_pipeline.py` (8) |
+| Sample validated JSON | `evidence/week3_sample_report.json` |
+| Mocked email and data-minimization evidence | `evidence/week3_mock_email_evidence.txt` |
+| Failure-path evidence | `evidence/week3_failure_demo.txt` |
+| Full test output | `evidence/week3_pytest_output_linux.txt` |
+| Env template | `.env.example` (placeholders only) |
+
+### 2- ThreatReport schema
+
+| Field | Type | Validation |
+|---|---|---|
+| `summary` | string | non-empty |
+| `observed_behavior` | string | non-empty |
+| `severity_recommendation` | string | lower-cased; one of low, medium, high, critical |
+| `confidence_score` | float | 0.0 to 1.0 inclusive |
+| `benign_explanations` | list of strings | required |
+| `next_steps` | list of strings | required |
+
+`investigate_alert(alert)` returns `{alert, report, investigation_status, investigation_error}`. `alert` is the original object, unmodified. `investigation_status` is `ok`, `failed` or `skipped`.
+
+### 3- Environment variables
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `AI_API_KEY` | provider key (required for AI) | none |
+| `AI_API_URL` | OpenAI-compatible chat-completions endpoint | OpenAI URL |
+| `AI_MODEL` | model name | `gpt-4o-mini` |
+| `AI_TIMEOUT_SEC` | request timeout in seconds | 20 |
+| `SMTP_HOST`, `SMTP_PORT` | mail server | port 587 |
+| `SMTP_USER`, `SMTP_PASSWORD` | SMTP login | none |
+| `SMTP_FROM`, `ALERT_EMAIL_TO` | sender and recipient | `SMTP_USER`, none |
+
+I read secrets only from the environment (or a git-ignored `.env`). If the SMTP settings are incomplete, the notification is skipped.
+
+### 4- Data minimization
+
+I send the provider only allow-listed fields: rule ID and name, severity, ISO timestamp, source and destination IP, and numeric or short evidence values (port counts, attempt counts, SYN ratio, byte counts, flow 5-tuple, DNS reason codes and query length).
+
+I never send PCAP files, packet payloads, credentials, the alert `summary` text, or the DNS query name. RULE-004 summaries contain the queried domain, which can reveal browsing, so I leave it out. The exact request body is in `evidence/week3_mock_email_evidence.txt`.
+
+### 5- Error handling
+
+| Failure | Behavior |
+|---|---|
+| Missing API key | `AIConfigError`, contained |
+| Timeout | `AITimeoutError`, contained |
+| Network error or HTTP status other than 200 | `AIProviderError` (status code or exception type only) |
+| Missing or empty response content | `AIProviderError` |
+| Invalid JSON (markdown code fences are tolerated) | `AIInvalidJSONError` |
+| Schema violation or `confidence_score` out of range | `AISchemaError` (field names only) |
+| Anything unexpected, including a non-dict alert | caught; exception type only |
+
+In every case the pipeline keeps running, the original alert is preserved, and the email (if enabled) still goes out with the original alert and the failure reason. Error strings and logs contain no API key, no SMTP password and no raw exception text that could echo them. `--max-alerts` (default 20) caps AI calls per run to control cost.
+
+### 6- Notifier
+
+The notifier uses SMTP with `starttls()` and the default SSL context, then logs in and sends, with a 15 s timeout. It returns True or False and never raises. The subject is `[PacketIQ][SEVERITY] RULE-ID detected`. The body has the detection summary and, when available, the AI summary, observed behavior, recommended severity and confidence, benign explanations and next steps.
+
+### 7- Tests
+
+| File | Tests | Covers |
+|---|---|---|
+| `test_ai_agent.py` | 17 | valid output, fenced JSON, malformed JSON, confidence bounds, missing field, timeout, HTTP 500, empty content, missing key, minimal data, DNS name not sent, non-dict alert, no secrets in logs or errors |
+| `test_notifier.py` | 4 | STARTTLS then login then send, email after a failed investigation, skipped without config, SMTP error contained with no password logged |
+| `test_pipeline.py` | 8 | all six attack-demo alerts enriched, no DNS names sent, provider down keeps every alert, AI disabled makes no calls, `--max-alerts` cap, email failure does not affect the result, CLI output, missing file |
+
+The provider and SMTP are mocked in every test, so they need no network or credentials.
+
+### 8- Evidence
+
+- `evidence/week3_pytest_output_linux.txt`: full run, 198 passed, 1 skipped
+- `evidence/week3_mock_email_evidence.txt`: minimized request, validated report, mocked SMTP sequence and message (credentials redacted)
+- `evidence/week3_failure_demo.txt`: timeout handled, alert preserved
+
+### 9- Limitations (Week 3)
+
+1. It supports OpenAI-compatible chat-completions endpoints only.
+2. The AI report is advisory. `confidence_score` is reported by the model, not calibrated.
+3. Internal IPs and port lists are sent to the provider.
+4. Leaving out DNS query names protects privacy but gives the model less context on RULE-004 alerts.
+5. There is no retry or backoff, and calls and emails are sent one after another.
+6. It sends one email per alert, with no batching or throttling.
+7. The automated tests mock the provider and SMTP, so they do not exercise real delivery.
+
+---
+
+# Combined evidence
+
+| Item | File |
+|---|---|
+| Week 1 parsing output | `evidence/cli_parse_output.txt`, `evidence/pytest_output_linux.txt`, `evidence/windows_run_output.txt`, `evidence/wireshark.png` |
+| Week 2 detection | `evidence/week2_pytest_output_linux.txt`, `evidence/week2_detection_cli_output.txt`, `evidence/example_alerts.json` |
+| Week 3 AI and alerting | `evidence/week3_*` (see B8) |
+
+# How to run
 
 ```powershell
-python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python scripts\make_sample_pcap.py
 python scripts\make_attack_pcap.py
 pytest tests -v
-python -m backend.app.capture parse sample_pcaps\sample.pcap
 python -m backend.app.detection sample_pcaps\attack_demo.pcap
+python -m evidence.week3_mock_demo
+python -m backend.app.pipeline sample_pcaps\attack_demo.pcap --ai --email
 ```
-
-Expected: 169 passed and 1 skipped, the Week 1 parse table, and six alerts from the detection run.
-
-## 3- Live capture
-
-Live capture is optional and only allowed on a network I own or am authorised to monitor. It requires Npcap on Windows and an explicit flag:
-
-```powershell
-python -m backend.app.capture live Ethernet --count 10 --timeout 10 --i-am-authorized
-```
-
-## 4- Known gaps across both weeks
-
-- Live capture has not been tested on real traffic.
-- Week 2 has been run on Linux only; the Windows run is pending.
-- Thresholds have only been tested on synthetic traffic.
-- Flow state is in memory with no expiry.
