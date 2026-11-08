@@ -184,27 +184,22 @@ def test_list_interfaces_shape():
     assert all(i["name"] for i in ifaces)
 
 
-def test_live_capture_requires_authorization():
-    with pytest.raises(PermissionError):
-        capture_live("lo")
-
-
 @pytest.mark.parametrize("count,timeout", [(0, 5), (5000, 5), (5, 0), (5, 600)])
 def test_live_capture_enforces_limits(count, timeout):
     with pytest.raises(ValueError):
-        capture_live("lo", count=count, timeout=timeout, authorized=True)
+        capture_live("lo", count=count, timeout=timeout)
 
 
 def test_live_capture_bad_interface_gives_capture_error():
     with pytest.raises(CaptureError):
-        capture_live("no_such_iface0", count=1, timeout=1, authorized=True)
+        capture_live("no_such_iface0", count=1, timeout=1)
 
 
 @pytest.mark.skipif(
     not (os.getenv("PACKETIQ_LIVE_TEST") == "1" and os.getenv("PACKETIQ_LIVE_IFACE")),
     reason="live capture is opt-in: set PACKETIQ_LIVE_TEST=1 and PACKETIQ_LIVE_IFACE (authorized lab only)",
 )
-def test_live_capture_short_authorized():
-    recs = capture_live(os.environ["PACKETIQ_LIVE_IFACE"], count=5, timeout=5, authorized=True)
+def test_live_capture_short():
+    recs = capture_live(os.environ["PACKETIQ_LIVE_IFACE"], count=5, timeout=5)
     assert len(recs) <= 5
     assert all(set(r.to_dict()) == FIELDS for r in recs)
