@@ -1,0 +1,2 @@
+AI investigation failed for RULE-003: AITimeoutError: Provider timed out after 20.0s
+timeout -> failed | AITimeoutError: Provider timed out after 20.0s | alert preserved: True

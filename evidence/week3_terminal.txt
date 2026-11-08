@@ -1,0 +1,31 @@
+(venv) PS <REDACTED>\packet-iq-ai> $env:U = "<REDACTED>@gmail.com"
+(venv) PS <REDACTED>\packet-iq-ai> $env:P = "gfvvf<REDACTED>livu" # app password
+(venv) PS <REDACTED>\packet-iq-ai> python -c "import smtplib,ssl,os; s=smtplib.SMTP('smtp.gmail.com',587,timeout=15); s.starttls(context=ssl.create_default_context()); s.ehlo(); s.login(os.environ['U'],os.environ['P']); print('LOGIN OK'); s.quit()"
+(venv) PS <REDACTED>\packet-iq-ai> python -c "import smtplib,ssl,os; s=smtplib.SMTP('smtp.gmail.com',587,timeout=15); s.starttls(context=ssl.create_default_context()); s.ehlo(); s.login(os.environ['U'],os.environ['P']); print('LOGIN OK'); s.quit()"
+LOGIN OK
+(venv) PS <REDACTED>\packet-iq-ai> $env:SMTP_HOST = "smtp.gmail.com"
+(venv) PS <REDACTED>\packet-iq-ai> $env:SMTP_PORT = "587"
+(venv) PS <REDACTED>\packet-iq-ai> $env:SMTP_USER = $env:U
+(venv) PS <REDACTED>\packet-iq-ai> $env:SMTP_PASSWORD = $env:P
+(venv) PS <REDACTED>\packet-iq-ai> $env:ALERT_EMAIL_TO = $env:U
+(venv) PS <REDACTED>\packet-iq-ai> python -c "from backend.app.notifier import send_alert_email as s; print(s({'alert':{'rule_id':'RULE-001','rule_name':'Port Scan','src_ip':'198.51.100.77','dst_ip':'192.0.2.10','summary':'test alert'},'report':None,'investigation_status':'skipped','investigation_error':'live SMTP test'}))"
+True
+(venv) PS <REDACTED>\packet-iq-ai> $env:AI_API_KEY = "gsk_<REDACTED>YwCaK"
+(venv) PS <REDACTED>\packet-iq-ai> $env:AI_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+(venv) PS <REDACTED>\packet-iq-ai> $env:AI_MODEL = "openai/gpt-oss-20b"
+(venv) PS <REDACTED>\packet-iq-ai> python -m backend.app.pipeline sample_pcaps\attack_demo.pcap --ai --max-alerts 1
+WARNING: No libpcap provider available ! pcap won't be used
+[MEDIUM] RULE-001 198.51.100.77 contacted 21 unique ports on 192.0.2.10 within 10s
+    AI: medium (0.90) Port scan detected from 198.51.100.77 to 192.0.2.10
+[HIGH  ] RULE-003 198.51.100.88 made 101 connection attempts to 192.0.2.20 within 5s
+    AI: skipped - skipped (max_alerts=1)
+[HIGH  ] RULE-005 50/50 TCP packets to 192.0.2.30 are SYNs with no completed handshake (100%)
+    AI: skipped - skipped (max_alerts=1)
+[MEDIUM] RULE-002 flow 192.0.2.40:51000 -> 198.51.100.50:443 carried 10494054 bytes (> 10485760)
+    AI: skipped - skipped (max_alerts=1)
+[MEDIUM] RULE-004 suspicious DNS query (query_length>50): aaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbb.cccccccccccc.example.com
+    AI: skipped - skipped (max_alerts=1)
+[MEDIUM] RULE-004 suspicious DNS query (high_entropy_label): x7k2q9m4z8p1w5v3n6.exfil.example
+    AI: skipped - skipped (max_alerts=1)
+(venv) PS <REDACTED>\packet-iq-ai> python -m backend.app.pipeline sample_pcaps\attack_demo.pcap --ai --max-alerts 1 --json > evidence\week3_live_ai.json
+WARNING: No libpcap provider available ! pcap won't be used
