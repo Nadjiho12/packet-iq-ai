@@ -1,7 +1,7 @@
 ﻿============================= test session starts =============================
-platform win32 -- Python 3.13.15, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\Nadji12\Desktop\Chal\Aero\packet-iq-ai_week3\packet-iq-ai\venv\Scripts\python.exe
+platform win32 -- Python 3.13.15, pytest-9.1.1, pluggy-1.7.0 -- <REDACTED>\packet-iq-ai\venv\Scripts\python.exe
 cachedir: .pytest_cache
-rootdir: C:\Users\Nadji12\Desktop\Chal\Aero\packet-iq-ai_week3\packet-iq-ai
+rootdir: <REDACTED>\packet-iq-ai
 configfile: pytest.ini
 plugins: anyio-4.16.0
 collecting ... collected 199 items
