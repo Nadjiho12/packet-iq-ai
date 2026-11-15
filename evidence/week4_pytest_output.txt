@@ -1,0 +1,26 @@
+> pytest .\tests\
+================================================= test session starts =================================================
+platform win32 -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Nadji12\Desktop\Chal\Aero\packet-iq-ai-4\packet-iq-ai
+configfile: pytest.ini
+plugins: anyio-4.15.1, platformdirs-4.13.0
+collected 264 items
+
+tests\test_ai_agent.py .................                                                                         [  6%]
+tests\test_ai_cap.py ........                                                                                    [  9%]
+tests\test_alert_actions.py .........                                                                            [ 12%]
+tests\test_api.py .........................                                                                      [ 22%]
+tests\test_capture.py .............................s                                                             [ 33%]
+tests\test_detection.py ....................................................................................     [ 65%]
+tests\test_flow_engine.py .......................................................                                [ 86%]
+tests\test_notifier.py ....                                                                                      [ 87%]
+tests\test_pipeline.py ........                                                                                  [ 90%]
+tests\test_settings.py ...s....................                                                                  [100%]
+
+================================================== warnings summary ===================================================
+..\..\..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\Nadji12\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================================== 262 passed, 2 skipped, 1 warning in 5.93s ======================================

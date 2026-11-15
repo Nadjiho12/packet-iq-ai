@@ -1,0 +1,59 @@
+# Week 4 end-to-end run (live uvicorn server, MOCK AI provider on :9000, synthetic PCAP)
+$ curl /api/v1/health
+{"status":"ok"}
+
+$ curl /api/v1/metrics   (before upload)
+{
+    "total_packets": 0,
+    "active_flows": 0,
+    "total_alerts": 0,
+    "total_uploads": 0,
+    "alerts_by_severity": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "critical": 0
+    },
+    "last_upload_at": null
+}
+
+$ curl -F file=@sample_pcaps/attack_demo.pcap "/api/v1/upload?ai=true"   [MOCK AI]
+{'id': 1, 'filename': 'attack_demo.pcap', 'size_bytes': 119327, 'packet_count': 1702, 'flow_count': 368, 'alert_count': 6, 'ai_requested': True}
+  RULE-001 medium ai=ok | [MOCK] Canned analysis of RULE-001.
+  RULE-003 high ai=ok | [MOCK] Canned analysis of RULE-003.
+  RULE-005 high ai=ok | [MOCK] Canned analysis of RULE-005.
+  RULE-002 medium ai=ok | [MOCK] Canned analysis of RULE-002.
+  RULE-004 medium ai=ok | [MOCK] Canned analysis of RULE-004.
+  RULE-004 medium ai=ok | [MOCK] Canned analysis of RULE-004.
+
+$ curl /api/v1/metrics   (after upload)
+{
+    "total_packets": 1702,
+    "active_flows": 368,
+    "total_alerts": 6,
+    "total_uploads": 1,
+    "alerts_by_severity": {
+        "low": 0,
+        "medium": 4,
+        "high": 2,
+        "critical": 0
+    },
+    "last_upload_at": "2026-11-13T12:31:47.571465Z"
+}
+
+$ curl "/api/v1/alerts?severity=high&limit=2"
+total 2
+  3 RULE-005 ok
+  2 RULE-003 ok
+
+--- upload validation ---
+$ upload n.txt (wrong extension)
+{"detail":"Unsupported file type. Upload a .pcap or .pcapng file."}
+ -> HTTP 415
+$ upload fake.pcap (text content)
+{"detail":"File content is not a PCAP/PCAPNG capture."}
+ -> HTTP 415
+
+--- AI provider unavailable (mock stopped), ai=true ---
+HTTP 201 | alerts kept: 6
+  RULE-001 ai=failed | AIProviderError: Provider request failed: ConnectionError

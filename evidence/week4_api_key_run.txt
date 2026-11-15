@@ -1,0 +1,26 @@
+# Week 4: saving an AI key through the API (live uvicorn, MOCK provider on :9000, synthetic PCAP)
+$ GET /api/v1/settings/ai   (nothing saved)
+{"configured":false,"source":null,"masked_key":null,"api_url":null,"model":null}
+
+$ upload ?ai=true with no key
+  RULE-001 ai=failed | AIConfigError: AI_API_KEY is not set
+
+$ PUT /api/v1/settings/ai  {api_key, api_url=http://127.0.0.1:9000/..., model}
+{"configured":true,"source":"saved","masked_key":"••••abcd","api_url":"http://127.0.0.1:9000/v1/chat/completions","model":"mock-model"}
+
+$ PUT with an unsafe URL
+{"detail":"API URL must start with https:// (http:// is allowed only for localhost)."} -> HTTP 422
+
+$ upload ?ai=true with the saved key
+  RULE-001 ai=ok | [MOCK] Canned analysis of RULE-001.
+
+--- restart the backend: key must survive ---
+{"configured":true,"source":"saved","masked_key":"••••abcd","api_url":"http://127.0.0.1:9000/v1/chat/completions","model":"mock-model"}
+
+$ saved file permissions and key never returned:
+  600 /tmp/set.json
+  occurrences of full key in API response: 0
+
+$ DELETE /api/v1/settings/ai
+{"configured":false,"source":null,"masked_key":null,"api_url":null,"model":null}
+  ls: cannot access '/tmp/set.json': No such file or directory

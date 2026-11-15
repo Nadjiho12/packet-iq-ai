@@ -1,0 +1,47 @@
+# Week 4: AI investigation without a cap, INVEST ALL, and SAVE (live uvicorn, MOCK AI provider on :9000)
+
+$ POST /api/v1/upload   (attack_demo.pcap, AI off)
+  attack_demo.pcap: 1702 packets, 368 flows, 6 alerts
+  id=1   RULE-001 ai_status=skipped
+  id=2   RULE-003 ai_status=skipped
+  id=3   RULE-005 ai_status=skipped
+  id=4   RULE-002 ai_status=skipped
+  id=5   RULE-004 ai_status=skipped
+  id=6   RULE-004 ai_status=skipped
+
+$ POST /api/v1/alerts/1/investigate   (INVEST, no API key saved yet)
+  ai_status=failed  ai_error=AIConfigError: AI_API_KEY is not set  alert kept=True
+
+$ GET /api/v1/alerts/6/export?format=csv   (SAVE before INVEST)
+  HTTP 409  Investigate this alert before saving it.
+
+$ PUT /api/v1/settings/ai   (key saved; URL points at the mock provider)
+  HTTP 200  configured=True masked_key=••••abcd
+
+$ POST /api/v1/upload?ai=true   (second capture, AI on, no cap)
+  6 alerts; statuses: ok (6 of 6 ok)
+
+$ INVEST ALL on the first capture (one request per alert without a result, as the dashboard does)
+  1 of 6: id=6   RULE-004 -> ai_status=ok
+  2 of 6: id=5   RULE-004 -> ai_status=ok
+  3 of 6: id=4   RULE-002 -> ai_status=ok
+  4 of 6: id=3   RULE-005 -> ai_status=ok
+  5 of 6: id=2   RULE-003 -> ai_status=ok
+  6 of 6: id=1   RULE-001 -> ai_status=ok
+
+$ GET /api/v1/alerts   (status of every alert afterwards)
+  12 alerts: ok=12
+
+$ GET /api/v1/alerts/6/export?format=csv
+  HTTP 200  text/csv; charset=utf-8
+  attachment; filename="alert-6-investigation.csv"
+  id,upload_id,rule_id,rule_name,severity,timestamp_iso,src_ip,dst_ip,summary,ai_status,ai_summary,ai_observed_behavior,ai_severity_recommendation,ai_confidence,ai_benign_explanations,ai_next_steps
+  6,1,RULE-004,Suspicious DNS,medium,2026-09-22T18:01:51+00:00,192.0.2.60,192.0.2.53,suspicious DNS query (high_entropy_label): x7k2q9m4z8p1w5v3n6.exfil.example,ok,[MOCK] Canned analysis of RULE-004.,[MOCK] Traffic pattern matches the detection rule threshold.,high,0.8,[MOCK] Authorized vulnerability scan; [MOCK] Misconfigured client,[MOCK] Review source host; [MOCK] Check firewall logs
+
+$ GET /api/v1/alerts/6/export?format=json
+  HTTP 200  investigation.status=ok  keys: id, upload_id, rule_id, rule_name, severity, timestamp_iso, src_ip, dst_ip, summary, evidence, investigation
+
+$ GET /api/v1/alerts/6/export?format=xml
+  HTTP 422
+
+check: the full API key does not appear anywhere in this transcript

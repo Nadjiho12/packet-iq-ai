@@ -1,0 +1,19 @@
+
+ RUN  v3.2.7 /home/claude/p/packet-iq-ai/frontend
+
+ ✓ src/test/Dashboard.test.jsx > Dashboard > shows a loading state, then metrics and alerts 88ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > shows an empty state when there are no alerts 15ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > shows an error banner when the backend is unreachable 13ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > expands an alert and shows the AI-unavailable fallback 79ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > uploads a PCAP, then refreshes; surfaces server errors 50ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > Refresh shows feedback and an updated time 449ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > Clear data asks for confirmation, then deletes and reloads 57ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > adds an API key: dialog sends it once, then only the masked hint is shown 204ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > disables Save until a key is typed, and shows server validation errors 107ms
+ ✓ src/test/Dashboard.test.jsx > Dashboard > removes a saved key 61ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  15:20:30
+   Duration  2.04s (transform 169ms, setup 81ms, collect 298ms, tests 1.12s, environment 284ms, prepare 91ms)
+
