@@ -17,11 +17,11 @@ from backend.app.notifier import send_alert_email
 
 
 def enrich_alerts(alerts: List[Dict[str, Any]], use_ai: bool = True, notify: bool = False,
-                  max_alerts: int = 20) -> List[Dict[str, Any]]:
+                  max_alerts: Optional[int] = None) -> List[Dict[str, Any]]:
     """Return one result per alert: {alert, report, investigation_status, investigation_error, notified}."""
     results: List[Dict[str, Any]] = []
     for i, alert in enumerate(alerts):
-        if use_ai and i < max_alerts:
+        if use_ai and (max_alerts is None or i < max_alerts):
             res = investigate_alert(alert)
         else:
             reason = "AI disabled" if not use_ai else f"skipped (max_alerts={max_alerts})"
@@ -46,7 +46,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("pcap")
     ap.add_argument("--ai", action="store_true", help="AI investigation report per alert")
     ap.add_argument("--email", action="store_true", help="send an SMTP notification per alert")
-    ap.add_argument("--max-alerts", type=int, default=20, help="cap AI calls per run (cost control)")
+    ap.add_argument("--max-alerts", type=int, default=None, help="optional cap on AI calls per run (default: all alerts)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     try:
